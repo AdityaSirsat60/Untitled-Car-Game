@@ -13,11 +13,17 @@ public class CamFollow : MonoBehaviour
     [Header("Zoom Settings")]
     public float zoomInDistance = -6f;
     public float zoomOutDistance = -14f;
-    public float maxSpeed = 50f; // speed at which full zoom out applies
+    public float maxSpeed = 50f; // speed at which full zoom out & max FOV apply
 
     [Header("Zoom Curve")]
     public AnimationCurve zoomCurve = AnimationCurve.Linear(0, 0, 1, 1); 
     // X-axis = normalized speed (0-1), Y-axis = zoom interpolation (0-1)
+
+    [Header("FOV Settings")]
+    public Camera cam;                     // Reference to main camera
+    public float normalFOV = 60f;          // Base FOV when stationary
+    public float maxFOV = 85f;             // Maximum FOV at top speed
+    public float fovSmoothSpeed = 5f;      // How smoothly FOV changes
 
     [Header("Mouse Look Settings")]
     public float mouseSensitivity = 3f;
@@ -40,16 +46,23 @@ public class CamFollow : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
+        if (!cam) cam = GetComponent<Camera>();
+        if (!cam) cam = Camera.main;
+
         // Default zoom curve if not set
         if (zoomCurve.length == 0)
         {
             zoomCurve = AnimationCurve.Linear(0, 0, 1, 1);
         }
+
+        // Initialize FOV
+        if (cam)
+            cam.fieldOfView = normalFOV;
     }
 
     void LateUpdate()
     {
-        if (!target || !carRigidbody) return;
+        if (!target || !carRigidbody || !cam) return;
 
         // --- Mouse Look ---
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
@@ -61,11 +74,15 @@ public class CamFollow : MonoBehaviour
 
         // --- Dynamic Zoom Based on Speed Curve ---
         float speed = carRigidbody.velocity.magnitude;
-        float normalizedSpeed = Mathf.Clamp01(speed / maxSpeed); // 0 to 1
+        float normalizedSpeed = Mathf.Clamp01(speed / maxSpeed); // 0–1
         float zoomLerp = zoomCurve.Evaluate(normalizedSpeed);    // Apply curve
         float dynamicZ = Mathf.Lerp(zoomInDistance, zoomOutDistance, zoomLerp);
 
-        // Base offset
+        // --- Dynamic FOV ---
+        float targetFOV = Mathf.Lerp(normalFOV, maxFOV, zoomLerp);
+        cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * fovSmoothSpeed);
+
+        // Base offset and rotation
         Vector3 baseOffset = new Vector3(0, offset.y, dynamicZ);
         Vector3 rotatedOffset = Quaternion.Euler(0f, yaw, 0f) * baseOffset;
         rotatedOffset.y += Mathf.Sin(pitch * Mathf.Deg2Rad) * Mathf.Abs(dynamicZ);
