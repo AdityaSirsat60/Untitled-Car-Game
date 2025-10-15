@@ -14,28 +14,28 @@ public class EndlessRoad : MonoBehaviour
     private float lastPlayerZ;
 
     void Start()
+{
+    lastPlayerZ = player.position.z;
+    int halfCount = roadCount / 2;
+
+    // Spawn behind first (lowest Z first)
+    for (int i = halfCount; i > 0; i--)
     {
-        lastPlayerZ = player.position.z;
-
-        int halfCount = roadCount / 2;
-
-        // Spawn roads **behind the car**
-        for (int i = halfCount; i > 0; i--)
-        {
-            float zPos = player.position.z - i * roadLength;
-            SpawnRoadAtFront(zPos);  // Add behind at start of list
-        }
-
-        // Spawn the road **under the car** (center segment)
-        SpawnRoadAtEnd(player.position.z);
-
-        // Spawn roads **in front of the car**
-        for (int i = 1; i <= halfCount; i++)
-        {
-            float zPos = player.position.z + i * roadLength;
-            SpawnRoadAtEnd(zPos);
-        }
+        float zPos = player.position.z - i * roadLength;
+        SpawnRoadAtEnd(zPos); // use End, not Front
     }
+
+    // Road under car
+    SpawnRoadAtEnd(player.position.z);
+
+    // Spawn in front
+    for (int i = 1; i <= halfCount; i++)
+    {
+        float zPos = player.position.z + i * roadLength;
+        SpawnRoadAtEnd(zPos);
+    }
+}
+
 
     void Update()
     {
