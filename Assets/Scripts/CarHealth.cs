@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class CarHealth : MonoBehaviour
 {
@@ -7,7 +8,7 @@ public class CarHealth : MonoBehaviour
     public float currentHealth;
 
     public Slider healthSlider;       // Assign your Slider
-    public Camera mainCamera;         // Assign your main camera here
+    public GameObject explosionPrefab; // Assign your explosion particle prefab
 
     void Start()
     {
@@ -19,19 +20,6 @@ public class CarHealth : MonoBehaviour
             healthSlider.value = currentHealth;
         }
 
-        if (mainCamera == null)
-        {
-            mainCamera = Camera.main;  // Automatically find main camera
-        }
-    }
-
-    void LateUpdate()
-    {
-        // Make the health bar face the camera
-        if (mainCamera != null)
-        {
-            transform.LookAt(transform.position + mainCamera.transform.forward);
-        }
     }
 
     public void TakeDamage(float amount)
@@ -39,6 +27,9 @@ public class CarHealth : MonoBehaviour
         currentHealth -= amount;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         UpdateHealthBar();
+
+        if (currentHealth <= 0)
+            Die();
     }
 
     public void Heal(float amount)
@@ -56,11 +47,22 @@ public class CarHealth : MonoBehaviour
         }
     }
 
-    void Update()
+    private void Die()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
+        // Spawn explosion effect
+        if (explosionPrefab != null)
         {
-            TakeDamage(20);   
+            Instantiate(explosionPrefab, transform.position, Quaternion.identity);
         }
+
+        // Destroy the car
+        // Destroy(gameObject);
+        this.gameObject.SetActive(false);
+        Invoke(nameof(Delay), 2.5f);
+    }
+
+    void Delay()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
