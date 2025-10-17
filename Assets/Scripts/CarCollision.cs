@@ -15,7 +15,7 @@ public class CarCollision : MonoBehaviour
 {
     if (other.CompareTag("Zombie"))
         {
-            carHealth.TakeDamage(100);
+            carHealth.TakeDamage(10);
         ZombieRagdoll zr = other.GetComponent<ZombieRagdoll>();
         if (zr != null)
         {

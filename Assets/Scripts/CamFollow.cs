@@ -11,8 +11,9 @@ public class CamFollow : MonoBehaviour
     public float followSmoothTime = 0.15f;
 
     [Header("Zoom Settings")]
-    public float zoomInDistance = -6f;
-    public float zoomOutDistance = -14f;
+    public float zoomInDistance = 6f;
+public float zoomOutDistance = 14f;
+
     public float maxSpeed = 50f; // speed at which full zoom out & max FOV apply
 
     [Header("Zoom Curve")]

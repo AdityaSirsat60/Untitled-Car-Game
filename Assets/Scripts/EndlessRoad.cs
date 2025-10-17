@@ -1,6 +1,13 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+[System.Serializable]
+public class ZombieSpawnInfo
+{
+    public GameObject prefab;
+    [Range(0f, 1f)] public float spawnChance = 0.5f;
+}
+
 public class EndlessRoad : MonoBehaviour
 {
     [Header("Road Settings")]
@@ -14,12 +21,12 @@ public class EndlessRoad : MonoBehaviour
     public float recycleBuffer = 20f;
 
     [Header("Zombie Settings")]
-    public GameObject zombiePrefab;
-    [Range(0f, 1f)] public float zombieSpawnChance = 0.5f;
+    public Vector3 spawnOffset = Vector3.zero;
     public float spawnAreaWidth = 6f;
     public float spawnAreaDepth = 30f;
-    public Vector3 spawnOffset = Vector3.zero;
     public bool showSpawnAreaGizmos = true;
+
+    public ZombieSpawnInfo[] zombies; // Array of zombie types with spawn chance
 
     private LinkedList<GameObject> roads = new LinkedList<GameObject>();
     private float lastPlayerZ;
@@ -63,7 +70,7 @@ public class EndlessRoad : MonoBehaviour
         Vector3 pos = new Vector3(roadWidth * 0.5f, 0f, zPos - roadLength * 0.5f);
         GameObject obj = ObjectPool.Instance.SpawnFromPool(roadPrefab, pos, Quaternion.identity);
         roads.AddLast(obj);
-        TrySpawnZombie(obj);
+        TrySpawnZombies(obj);
     }
 
     void SpawnRoadAtFront(float zPos)
@@ -71,7 +78,7 @@ public class EndlessRoad : MonoBehaviour
         Vector3 pos = new Vector3(roadWidth * 0.5f, 0f, zPos - roadLength * 0.5f);
         GameObject obj = ObjectPool.Instance.SpawnFromPool(roadPrefab, pos, Quaternion.identity);
         roads.AddFirst(obj);
-        TrySpawnZombie(obj);
+        TrySpawnZombies(obj);
     }
 
     void MoveRoadForward()
@@ -84,7 +91,7 @@ public class EndlessRoad : MonoBehaviour
         roads.AddLast(obj);
 
         ClearOldZombies(obj);
-        TrySpawnZombie(obj);
+        TrySpawnZombies(obj);
     }
 
     void MoveRoadBackward()
@@ -97,22 +104,29 @@ public class EndlessRoad : MonoBehaviour
         roads.AddFirst(obj);
 
         ClearOldZombies(obj);
-        TrySpawnZombie(obj);
+        TrySpawnZombies(obj);
     }
 
-    void TrySpawnZombie(GameObject road)
+    void TrySpawnZombies(GameObject road)
     {
-        if (zombiePrefab == null) return;
-        if (Random.value > zombieSpawnChance) return;
+        if (zombies == null || zombies.Length == 0) return;
 
-        float xOffset = Random.Range(-spawnAreaWidth * 0.5f, spawnAreaWidth * 0.5f);
-        float zOffset = Random.Range(-spawnAreaDepth * 0.5f, spawnAreaDepth * 0.5f);
+        foreach (var zInfo in zombies)
+        {
+            if (zInfo.prefab == null) continue;
+            if (Random.value > zInfo.spawnChance) continue;
 
-        Vector3 spawnPos = road.transform.position + spawnOffset + new Vector3(xOffset, 0f, zOffset);
+            float xOffset = Random.Range(-spawnAreaWidth * 0.5f, spawnAreaWidth * 0.5f);
+            float zOffset = Random.Range(-spawnAreaDepth * 0.5f, spawnAreaDepth * 0.5f);
 
-        GameObject zombie = ObjectPool.Instance.SpawnFromPool(zombiePrefab, spawnPos, Quaternion.identity, road.transform);
-        ZombieRagdoll zr = zombie.GetComponent<ZombieRagdoll>();
-        if (zr != null) zr.Initialize();
+            Vector3 spawnPos = road.transform.position + spawnOffset + new Vector3(xOffset, 0f, zOffset);
+
+            GameObject zombie = ObjectPool.Instance.SpawnFromPool(zInfo.prefab, spawnPos, Quaternion.identity, road.transform);
+
+            // Initialize ragdoll if needed
+            ZombieRagdoll zr = zombie.GetComponent<ZombieRagdoll>();
+            if (zr != null) zr.Initialize();
+        }
     }
 
     void ClearOldZombies(GameObject road)
