@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class ZombieRagdoll : MonoBehaviour,IPooledObject
+public class ZombieRagdoll : MonoBehaviour, IPooledObject
 {
     [Header("Ragdoll Setup")]
     public Rigidbody[] ragdollBodies;
@@ -11,7 +11,21 @@ public class ZombieRagdoll : MonoBehaviour,IPooledObject
     public float hitForce = 10f;
 
     [Header("Pooling")]
-    public float ragdollLifetime = 5f; // auto-return delay
+    public float ragdollLifetime = 5f;
+
+    [Header("Zombie Sounds")]
+    public AudioSource hitAudio;              // AudioSource for hits
+    public AudioClip[] boneBreakVariants;     // Bone-breaking sounds
+    public AudioClip[] splashVariants;        // Blood splash sounds
+    private float lastHitTime;
+    private float hitCooldown = 0.1f;         // Minimum delay between hits
+
+    [Header("Idle Sound")]
+    public AudioSource idleAudio;             // AudioSource for idle looping
+    public AudioClip idleClip;                // Idle clip
+    public float idleVolume = 1f;             // Idle volume
+    public float idlePitchMin = 0.9f;         // Idle pitch min
+    public float idlePitchMax = 1.1f;         // Idle pitch max
 
     private bool isRagdoll = false;
     private Coroutine ragdollCoroutine;
@@ -22,6 +36,16 @@ public class ZombieRagdoll : MonoBehaviour,IPooledObject
         isRagdoll = false;
         if (animator != null) animator.enabled = true;
         SetRagdoll(false);
+
+        // Start idle sound if assigned
+        if (idleAudio != null && idleClip != null)
+        {
+            idleAudio.clip = idleClip;
+            idleAudio.volume = idleVolume;
+            idleAudio.pitch = Random.Range(idlePitchMin, idlePitchMax);
+            if (!idleAudio.isPlaying)
+                idleAudio.Play();
+        }
     }
 
     /// <summary>Trigger ragdoll, apply force, spawn blood effect, auto-return to pool.</summary>
@@ -34,8 +58,31 @@ public class ZombieRagdoll : MonoBehaviour,IPooledObject
 
         SetRagdoll(true);
 
+        // Stop idle sound when zombie is ragdolled
+        if (idleAudio != null && idleAudio.isPlaying)
+            idleAudio.Stop();
+
+        // Apply force to all ragdoll bodies
         for (int i = 0; i < ragdollBodies.Length; i++)
             ragdollBodies[i].AddForceAtPosition(forceDir * hitForce, forcePoint, ForceMode.Impulse);
+
+        // Play bone-breaking sound
+        if (hitAudio != null && boneBreakVariants.Length > 0 && Time.time - lastHitTime > hitCooldown)
+        {
+            AudioClip chosenBoneClip = boneBreakVariants[Random.Range(0, boneBreakVariants.Length)];
+            hitAudio.pitch = Random.Range(0.85f, 1.15f); // slight random pitch
+            hitAudio.PlayOneShot(chosenBoneClip, 1f);
+        }
+
+        // Play splash sound
+        if (hitAudio != null && splashVariants.Length > 0 && Time.time - lastHitTime > hitCooldown)
+        {
+            AudioClip chosenSplashClip = splashVariants[Random.Range(0, splashVariants.Length)];
+            hitAudio.pitch = Random.Range(0.85f, 1.15f);
+            hitAudio.PlayOneShot(chosenSplashClip, 1f);
+        }
+
+        lastHitTime = Time.time;
 
         // Spawn pooled blood effect
         if (bloodEffectPrefab != null)
@@ -63,8 +110,9 @@ public class ZombieRagdoll : MonoBehaviour,IPooledObject
         ObjectPool.Instance.ReturnToPool(gameObject);
     }
 
+    
     public void OnObjectSpawn()
     {
-        Initialize(); // reset ragdoll state when spawned from pool
+        Initialize(); // reset ragdoll state and idle sound
     }
 }

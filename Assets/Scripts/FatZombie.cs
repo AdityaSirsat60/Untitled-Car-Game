@@ -7,9 +7,19 @@ public class FatZombie : MonoBehaviour, IPooledObject
     public float disappearDelay = 0.5f;    // Time before returning to pool
     public GameObject hitEffect;           // Optional particle effect
 
+    [Header("FatZombie Sounds")]
+    public AudioSource thumpAudio;         // AudioSource for thump
+    public AudioClip thumpClip;            // Thump sound clip
+    public float thumpVolume = 1f;         // Full volume
+    public float thumpPitchMin = 0.9f;     // Slight pitch variation
+    public float thumpPitchMax = 1.1f;
+
     private bool hit = false;
     private Collider col;
     private MeshRenderer[] renderers;
+
+    private float lastThumpTime;
+    private float thumpCooldown = 0.2f;    // Minimum delay between thumps
 
     void Awake()
     {
@@ -53,17 +63,17 @@ public class FatZombie : MonoBehaviour, IPooledObject
         if (carHealth != null)
             carHealth.TakeDamage(carDamage);
 
+        // Play thump sound
+        if (thumpAudio != null && thumpClip != null && Time.time - lastThumpTime > thumpCooldown)
+        {
+            thumpAudio.pitch = Random.Range(thumpPitchMin, thumpPitchMax);
+            thumpAudio.PlayOneShot(thumpClip, thumpVolume);
+            lastThumpTime = Time.time;
+        }
+
         // Spawn hit effect via pool
         if (hitEffect != null)
             ObjectPool.Instance.SpawnFromPool(hitEffect, transform.position, Quaternion.identity);
-
-        // Disable collider and renderer immediately
-        // if (col != null) col.enabled = false;
-        // if (renderers != null)
-        // {
-        //     foreach (var r in renderers)
-        //         r.enabled = false;
-        // }
 
         // Return to pool after delay
         Invoke(nameof(ReturnToPool), disappearDelay);

@@ -4,11 +4,17 @@ using UnityEngine.SceneManagement;
 
 public class CarHealth : MonoBehaviour
 {
+    [Header("Health Settings")]
     public float maxHealth = 100f;
     public float currentHealth;
 
-    public Slider healthSlider;       // Assign your Slider
-    public GameObject explosionPrefab; // Assign your explosion particle prefab
+    [Header("UI")]
+    public Slider healthSlider;        // Assign your Slider
+
+    [Header("Explosion Effect & Sound")]
+    public GameObject explosionPrefab; // Explosion particle prefab
+    public AudioClip explosionClip;    // Explosion sound clip
+    public float explosionVolume = 1f; // Volume for explosion sound
 
     void Start()
     {
@@ -19,7 +25,6 @@ public class CarHealth : MonoBehaviour
             healthSlider.maxValue = maxHealth;
             healthSlider.value = currentHealth;
         }
-
     }
 
     public void TakeDamage(float amount)
@@ -49,16 +54,23 @@ public class CarHealth : MonoBehaviour
 
     private void Die()
     {
-        // Spawn explosion effect
+        // Spawn explosion particle effect
         if (explosionPrefab != null)
         {
             Instantiate(explosionPrefab, transform.position, Quaternion.identity);
         }
 
-        // Destroy the car
-        // Destroy(gameObject);
+        // Play explosion sound via AudioManager
+        if (AudioManager.Instance != null && explosionClip != null)
+        {
+            AudioManager.Instance.PlaySound(explosionClip, transform.position, explosionVolume);
+        }
+
+        // Disable the car
         this.gameObject.SetActive(false);
-        Invoke(nameof(Delay), 2.5f);
+
+        // Reload the scene after a delay
+        Invoke(nameof(Delay), 5f);
     }
 
     void Delay()

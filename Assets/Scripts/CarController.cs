@@ -17,58 +17,70 @@ public class CarController : MonoBehaviour
     [Header("Car Settings")]
     public float maxMotorTorque = 1500f;
     public float maxSteeringAngle = 30f;
-    public float brakeTorque = 3000f;        // Regular braking
-    public float handBrakeTorque = 5000f;    // Stronger for handbrake
+    public float brakeTorque = 3000f;
+    public float handBrakeTorque = 5000f;
+
+    [Header("Car Sounds")]
+    public AudioSource engineAudio;
+    public AudioSource brakeAudio;
+    public float minEnginePitch = 0.8f;
+    public float maxEnginePitch = 2.0f;
+    public float enginePitchMultiplier = 1.2f;
+
+    [Header("Brake Settings")]
+public float brakeSoundMinSpeed = 0.5f; // Minimum Rigidbody speed to play brake sound
+
 
     private float motorInput;
     private float steeringInput;
     private bool isBraking;
     private bool isHandbrake;
+    private Rigidbody rb;
 
     void Start()
     {
+        rb = GetComponent<Rigidbody>();
+
         SetupWheelFriction(frontLeftWheel);
         SetupWheelFriction(frontRightWheel);
         SetupWheelFriction(rearLeftWheel);
         SetupWheelFriction(rearRightWheel);
+
+        if (engineAudio != null)
+        {
+            engineAudio.loop = true;
+            engineAudio.Play();
+        }
     }
 
     void Update()
     {
-        motorInput = Input.GetAxis("Vertical");        // W/S
-        steeringInput = Input.GetAxis("Horizontal");   // A/D
+        motorInput = Input.GetAxis("Vertical");
+        steeringInput = Input.GetAxis("Horizontal");
 
-        // Check for braking
-        isBraking = Input.GetKey(KeyCode.Space);       // Normal brake: Space
-        isHandbrake = Input.GetKey(KeyCode.LeftControl); // Handbrake: Left Ctrl
+        isBraking = Input.GetKey(KeyCode.Space);
+        isHandbrake = Input.GetKey(KeyCode.LeftControl);
+
+        // Play brake sound only if the car is moving
+        bool isMoving = rb.velocity.magnitude > brakeSoundMinSpeed; // adjust threshold if needed
+
+        if ((isBraking || isHandbrake) && isMoving && brakeAudio != null && !brakeAudio.isPlaying)
+        {
+            brakeAudio.Play();
+        }
+        else if ((!isBraking && !isHandbrake) || !isMoving)
+        {
+            if (brakeAudio != null && brakeAudio.isPlaying)
+                brakeAudio.Stop();
+        }
     }
 
-    void SetupWheelFriction(WheelCollider wheel)
-    {
-        WheelFrictionCurve forward = wheel.forwardFriction;
-        forward.extremumSlip = 0.4f;
-        forward.extremumValue = 1.5f;
-        forward.asymptoteSlip = 0.8f;
-        forward.asymptoteValue = 1f;
-        forward.stiffness = 1.0f; // <- Increase this for more grip
-        wheel.forwardFriction = forward;
-
-        WheelFrictionCurve sideways = wheel.sidewaysFriction;
-        sideways.extremumSlip = 0.2f;
-        sideways.extremumValue = 1.5f;
-        sideways.asymptoteSlip = 0.5f;
-        sideways.asymptoteValue = 1f;
-        sideways.stiffness = 1.0f; // <- More lateral grip
-        wheel.sidewaysFriction = sideways;
-    }
     void FixedUpdate()
     {
-        // Handle steering
         float steerAngle = steeringInput * maxSteeringAngle;
         frontLeftWheel.steerAngle = steerAngle;
         frontRightWheel.steerAngle = steerAngle;
 
-        // Handle motor torque
         if (!isBraking && !isHandbrake)
         {
             rearLeftWheel.motorTorque = motorInput * maxMotorTorque;
@@ -80,7 +92,6 @@ public class CarController : MonoBehaviour
             frontRightWheel.brakeTorque = 0f;
         }
 
-        // Normal brake
         if (isBraking)
         {
             rearLeftWheel.brakeTorque = brakeTorque;
@@ -92,7 +103,6 @@ public class CarController : MonoBehaviour
             rearRightWheel.motorTorque = 0f;
         }
 
-        // Handbrake (rear wheels only)
         if (isHandbrake)
         {
             rearLeftWheel.brakeTorque = handBrakeTorque;
@@ -102,11 +112,31 @@ public class CarController : MonoBehaviour
             rearRightWheel.motorTorque = 0f;
         }
 
-        // Update visuals
         UpdateWheelVisual(frontLeftWheel, frontLeftTransform);
         UpdateWheelVisual(frontRightWheel, frontRightTransform);
         UpdateWheelVisual(rearLeftWheel, rearLeftTransform);
         UpdateWheelVisual(rearRightWheel, rearRightTransform);
+
+        UpdateEngineSound();
+    }
+
+    void SetupWheelFriction(WheelCollider wheel)
+    {
+        WheelFrictionCurve forward = wheel.forwardFriction;
+        forward.extremumSlip = 0.4f;
+        forward.extremumValue = 1.5f;
+        forward.asymptoteSlip = 0.8f;
+        forward.asymptoteValue = 1f;
+        forward.stiffness = 1.0f;
+        wheel.forwardFriction = forward;
+
+        WheelFrictionCurve sideways = wheel.sidewaysFriction;
+        sideways.extremumSlip = 0.2f;
+        sideways.extremumValue = 1.5f;
+        sideways.asymptoteSlip = 0.5f;
+        sideways.asymptoteValue = 1f;
+        sideways.stiffness = 1.0f;
+        wheel.sidewaysFriction = sideways;
     }
 
     void UpdateWheelVisual(WheelCollider col, Transform trans)
@@ -116,5 +146,15 @@ public class CarController : MonoBehaviour
         col.GetWorldPose(out pos, out rot);
         trans.position = pos;
         trans.rotation = rot;
+    }
+
+    void UpdateEngineSound()
+    {
+        if (engineAudio == null) return;
+
+        float avgRpm = (Mathf.Abs(rearLeftWheel.rpm) + Mathf.Abs(rearRightWheel.rpm)) * 0.5f;
+        float pitch = Mathf.Lerp(minEnginePitch, maxEnginePitch, avgRpm / 3000f);
+        engineAudio.pitch = Mathf.Clamp(pitch * enginePitchMultiplier, minEnginePitch, maxEnginePitch);
+        engineAudio.volume = Mathf.Lerp(0.3f, 1.0f, avgRpm / 3000f);
     }
 }
